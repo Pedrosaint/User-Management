@@ -2,50 +2,31 @@ import { useEffect, useState } from "react";
 import UserDetails from "./user_details";
 import UserList from "./user_list";
 import type { IUser } from "../types/user.type";
+import { useGetUsersQuery } from "../api/usersApi";
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<IUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<IUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
-
-  const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch("https://jsonplaceholder.typicode.com/users");
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch users");
-        }
-
-        const data: IUser[] = await res.json();
-        setUsers(data);
-        setFilteredUsers(data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+  const { data: users = [], isLoading, error } = useGetUsersQuery();
 
   useEffect(() => {
-    // show a brief searching state to signal local filtering work
+    if (!users.length) {
+      setFilteredUsers([]);
+      return;
+    }
+
     setSearching(true);
 
     const handle = setTimeout(() => {
-      const result = users.filter((user) =>
+      const result = users.filter((user: IUser) =>
         user.name.toLowerCase().includes(search.toLowerCase())
       );
       setFilteredUsers(result);
       setSearching(false);
-    }, 150); // small debounce to avoid flicker while typing
+    }, 150);
 
     return () => clearTimeout(handle);
   }, [search, users]);
@@ -62,16 +43,16 @@ const UserManagement = () => {
         className="search"
       />
 
-      {loading && <p>Loading users...</p>}
-      {searching && !loading && <p>Filtering users...</p>}
+      {isLoading && <p>Loading users...</p>}
+      {searching && !isLoading && <p>Filtering users...</p>}
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">Failed to load users.</p>}
 
-      {!loading && !error && filteredUsers.length === 0 && (
+      {!isLoading && !error && filteredUsers.length === 0 && (
         <p>No users found.</p>
       )}
 
-      {!loading && !error && filteredUsers.length > 0 && (
+      {!isLoading && !error && filteredUsers.length > 0 && (
         <UserList users={filteredUsers} onSelect={setSelectedUser} />
       )}
 
